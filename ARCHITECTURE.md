@@ -64,7 +64,7 @@ Research/
 │
 ├── scripts/                    ← Automation scripts
 │   ├── paper-discovery.sh      ← Shell script run by launchd daily at 6:00 AM (+ catch-up slots)
-│   ├── com.research.paper-discovery.plist  ← launchd plist (install to ~/Library/LaunchAgents/)
+│   ├── com.research.paper-discovery.plist.template  ← launchd plist template; sed __REPO_ROOT__ and install to ~/Library/LaunchAgents/
 │   ├── rebuild_index.py        ← Rebuilds every Library/<Topic>/index.json from note frontmatter + regenerates README's auto-managed library-overview block
 │   ├── topic_menu.py           ← Emits a compact `Topic — one-line scope` menu from each MOC intro (fed to pipeline-orchestrator's summary sub-agents for in-agent classification)
 │   ├── backfill_discovery.py   ← Regenerates discovery/ digests over a date range against the current topic set (per-day, no dedup); reuses the skill's BM25 table + semantic_classify
@@ -219,8 +219,11 @@ An automated daily job fetches recent HuggingFace daily papers and filters them 
 ```
 
 ### Install the launchd job (one-time setup)
+launchd requires absolute paths and does no variable expansion, so the plist ships as a template with a `__REPO_ROOT__` placeholder. Substitute the repo root as you install it:
+
 ```bash
-cp scripts/com.research.paper-discovery.plist ~/Library/LaunchAgents/
+sed "s|__REPO_ROOT__|$(pwd)|g" scripts/com.research.paper-discovery.plist.template \
+  > ~/Library/LaunchAgents/com.research.paper-discovery.plist
 launchctl load ~/Library/LaunchAgents/com.research.paper-discovery.plist
 # If updating an already-installed agent, reload it:
 #   launchctl bootout gui/$(id -u)/com.research.paper-discovery

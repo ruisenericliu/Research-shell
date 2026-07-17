@@ -8,9 +8,10 @@
 # and writes a digest to /discovery/YYYY-MM-DD.md
 set -euo pipefail
 
-REPO="/Users/ruisenliu/Repositories/Research"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG="$REPO/discovery/last-run.log"
-CLAUDE="/Users/ruisenliu/.local/bin/claude"
+# launchd runs with a minimal PATH, so fall back to the usual install location.
+CLAUDE="${CLAUDE_BIN:-$(command -v claude || echo "$HOME/.local/bin/claude")}"
 TODAY=$(date '+%Y-%m-%d')
 HOUR=$(date '+%H')
 DIGEST="$REPO/discovery/$TODAY.md"

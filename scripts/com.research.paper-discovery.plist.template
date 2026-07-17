@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<!-- Template, not a loadable plist: launchd requires absolute paths and does
+     no variable expansion, so __REPO_ROOT__ must be substituted at install
+     time. See ARCHITECTURE.md → "Install the launchd job" for the one-liner. -->
 <dict>
   <key>Label</key>
   <string>com.research.paper-discovery</string>
@@ -9,7 +12,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/ruisenliu/Repositories/Research/scripts/paper-discovery.sh</string>
+    <string>__REPO_ROOT__/scripts/paper-discovery.sh</string>
   </array>
 
   <!-- Fire at 6:00 AM (primary) plus catch-up slots at 9/12/15/18:00.
@@ -52,9 +55,9 @@
   </array>
 
   <key>StandardOutPath</key>
-  <string>/Users/ruisenliu/Repositories/Research/discovery/launchd-stdout.log</string>
+  <string>__REPO_ROOT__/discovery/launchd-stdout.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/ruisenliu/Repositories/Research/discovery/launchd-stderr.log</string>
+  <string>__REPO_ROOT__/discovery/launchd-stderr.log</string>
 
   <!-- Do not run immediately on load — only fire at scheduled time -->
   <key>RunAtLoad</key>

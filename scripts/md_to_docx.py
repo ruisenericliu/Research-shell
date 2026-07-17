@@ -1,6 +1,14 @@
-"""Convert the neurosymbolic literature review markdown to a formatted Word doc."""
+"""Convert a literature review markdown note to a formatted Word doc.
+
+Defaults to the neurosymbolic review this was written for; pass an input
+path (and optionally an output path) to convert any other note:
+
+    python scripts/md_to_docx.py [input.md] [output.docx]
+"""
 
 import re
+import sys
+from pathlib import Path
 from docx import Document
 from docx.shared import Pt, RGBColor, Inches, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -8,14 +16,17 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-INPUT_MD = (
-    "/Users/ruisenliu/Repositories/Research/Library/"
-    "Inference-Time Reasoning Algorithms/"
-    "2026-05-15 Literature Review - Neurosymbolic AI and Formal Verification for AWS Workflows.md"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+DEFAULT_INPUT_MD = (
+    REPO_ROOT
+    / "Library"
+    / "Inference-Time Reasoning Algorithms"
+    / "2026-05-15 Literature Review - Neurosymbolic AI and Formal Verification for AWS Workflows.md"
 )
-OUTPUT_DOCX = (
-    "/Users/ruisenliu/Repositories/Research/"
-    "2026-05-15 Neurosymbolic AI & Formal Verification - Literature Review.docx"
+DEFAULT_OUTPUT_DOCX = (
+    REPO_ROOT
+    / "2026-05-15 Neurosymbolic AI & Formal Verification - Literature Review.docx"
 )
 
 # ── Colours ──────────────────────────────────────────────────────────────────
@@ -491,13 +502,23 @@ def render_md(doc: Document, md_text: str):
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    with open(INPUT_MD, encoding="utf-8") as f:
-        md = f.read()
+    input_md = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_INPUT_MD
+    if len(sys.argv) > 2:
+        output_docx = Path(sys.argv[2])
+    elif len(sys.argv) > 1:
+        output_docx = input_md.with_suffix(".docx")
+    else:
+        output_docx = DEFAULT_OUTPUT_DOCX
+
+    if not input_md.is_file():
+        raise SystemExit(f"Input note not found: {input_md}")
+
+    md = input_md.read_text(encoding="utf-8")
 
     doc = build_doc()
     render_md(doc, md)
-    doc.save(OUTPUT_DOCX)
-    print(f"Saved: {OUTPUT_DOCX}")
+    doc.save(output_docx)
+    print(f"Saved: {output_docx}")
 
 
 if __name__ == "__main__":

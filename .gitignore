@@ -3,6 +3,10 @@ Research_OneNotes
 .DS_Store
 .vscode
 
+# Python virtualenv. Modern `python -m venv` drops a self-ignoring .gitignore
+# inside it, but older versions do not — so ignore it here too.
+researchEnv/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

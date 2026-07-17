@@ -5,7 +5,9 @@ description: Fetch recent HuggingFace daily papers, filter by research topics of
 
 # Paper Discovery Skill
 
-Fetch HuggingFace daily papers for the last N days, filter by topic, and write a curated digest to `/discovery/YYYY-MM-DD.md`.
+Fetch HuggingFace daily papers for the last N days, filter by topic, and write a curated digest to `discovery/YYYY-MM-DD.md`.
+
+All paths are relative to the repo root (the directory containing `CLAUDE.md`), which is the working directory for every command below.
 
 ## Arguments
 
@@ -50,7 +52,7 @@ Collect all papers across all dates. Remove duplicates by `paper.id`, keeping th
 
 ### 4. Check against previous runs
 
-Scan all existing files in `/Users/ruisenliu/Repositories/Research/discovery/` (excluding today's file if it exists, `.gitkeep`, and log files). Extract every arXiv ID that appears in those files by grepping for the pattern `arxiv.org/abs/` or `**arXiv:**`. Build a set of previously-seen IDs.
+Scan all existing files in `discovery/` (excluding today's file if it exists, `.gitkeep`, and log files). Extract every arXiv ID that appears in those files by grepping for the pattern `arxiv.org/abs/` or `**arXiv:**`. Build a set of previously-seen IDs.
 
 For each paper in today's fetch, mark it as a **prior duplicate** if its `paper.id` is in that set. Count these separately — they will not appear in any section of the digest but are reported in the summary header.
 
@@ -95,7 +97,7 @@ Check `paper.title` and `paper.summary` (case-insensitive) against the keyword m
 Build a JSON array of all non-duplicate papers in the form `[{"id": "...", "title": "...", "abstract": "..."}]` where `abstract` is the paper's `summary` field. Pipe it to the classifier bundled with this skill:
 
 ```bash
-echo '<JSON_ARRAY>' | /Users/ruisenliu/Repositories/Research/researchEnv/bin/python /Users/ruisenliu/Repositories/Research/.claude/skills/paper-discovery/semantic_classify.py
+echo '<JSON_ARRAY>' | researchEnv/bin/python .claude/skills/paper-discovery/semantic_classify.py
 ```
 
 The script reads each `Library/<Topic>/MOC.md` as the semantic specification for that topic, embeds both the MOC text and each paper's title+abstract using `all-MiniLM-L6-v2`, and returns a JSON object mapping `paper_id → {topic_name: score}` for all topics that exceeded the threshold. Default similarity threshold is 0.50.
@@ -159,7 +161,7 @@ If all topics have 0 matches, replace topic sections with: `> No papers matched 
 
 Write the digest to:
 ```
-/Users/ruisenliu/Repositories/Research/discovery/YYYY-MM-DD.md
+discovery/YYYY-MM-DD.md
 ```
 
 Using today's date as the filename. Overwrite if the file already exists (runs are idempotent).

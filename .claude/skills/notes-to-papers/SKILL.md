@@ -83,7 +83,7 @@ For low-confidence results from Route B, try Route A if a project URL is availab
 
 ## Step 4: Write to the Staging File
 
-Default output file: `staging/unsorted.txt` (relative to the Research repo root: `/Users/ruisenliu/Repositories/Research/staging/unsorted.txt`).
+Default output file: `staging/unsorted.txt`, relative to the repo root.
 
 If the user specified a different target in their prompt, use that instead.
 

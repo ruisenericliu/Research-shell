@@ -13,7 +13,7 @@ Take a generated paper summary (the markdown file the `arxiv-summary` skill prod
 
 **The `MOC.md` is semantic only** — a topic's scope description plus hand-curated `[[concept links]]`. It does **not** enumerate the filed papers; that enumeration lives in `index.json`. Never add a `## Papers` section to a MOC.
 
-All paths are relative to the Research repo root: `/Users/ruisenliu/Repositories/Research/`.
+All paths are relative to the repo root (the directory containing `CLAUDE.md`), which is the working directory for every command below.
 
 **This skill is the source of truth for classification (Steps 2–3) and split clustering (Step 4).** It runs two ways. **Interactive/single-paper:** you do every step below yourself. **Pipeline mode** (`pipeline-orchestrator`): the classification decision (Steps 2–3, method-first + confidence gate) is made inside each Sonnet summary sub-agent, which stamps `topic:` into the note's frontmatter; the orchestrator then files the whole batch mechanically via the Step 6 bulk shortcut (one `mv` pass + a single `rebuild_index.py`), and runs the Step 4 cap/split check once at the end. Same rules, cheaper thread — don't restate the rules in the orchestrator, reference them.
 

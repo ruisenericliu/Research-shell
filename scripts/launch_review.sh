@@ -3,9 +3,14 @@
 # Usage: bash scripts/launch_review.sh [port]   (default port: 8000)
 set -euo pipefail
 
-REPO="/Users/ruisenliu/Repositories/Research"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT="${1:-8000}"
 PY="$REPO/researchEnv/bin/python"
+
+if [ ! -x "$PY" ]; then
+  echo "error: no interpreter at $PY — create the virtualenv first (see README → Environment)" >&2
+  exit 1
+fi
 
 cd "$REPO"
 
