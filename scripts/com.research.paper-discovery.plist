@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.research.paper-discovery</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/ruisenliu/Repositories/Research/scripts/paper-discovery.sh</string>
+  </array>
+
+  <!-- Fire at 6:00 AM (primary) plus catch-up slots at 9/12/15/18:00.
+       launchd does not wake the machine and does not reliably run a run
+       missed during sleep; multiple slots + an idempotent script mean the
+       first slot that lands while the Mac is awake does the work, and the
+       rest no-op once that day's digest exists. -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Hour</key>
+      <integer>6</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Hour</key>
+      <integer>9</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Hour</key>
+      <integer>12</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Hour</key>
+      <integer>15</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Hour</key>
+      <integer>18</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+  </array>
+
+  <key>StandardOutPath</key>
+  <string>/Users/ruisenliu/Repositories/Research/discovery/launchd-stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/ruisenliu/Repositories/Research/discovery/launchd-stderr.log</string>
+
+  <!-- Do not run immediately on load — only fire at scheduled time -->
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

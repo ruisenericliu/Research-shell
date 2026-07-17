@@ -1,0 +1,9 @@
+# Golden set for the pipeline-orchestrator classification eval. One JSON object per line.
+# Fields: arxiv_id, name, expected_topics (acceptable topic-folder names), unsure_ok
+#         (is leaving it UNSURE an acceptable outcome?), require_unsure (must be UNSURE),
+#         note (why this case exists). All papers are confirmed present in Paperclip.
+{"arxiv_id": "2406.09246", "name": "OpenVLA", "expected_topics": ["VLA — Foundations & Training", "Vision Language Action Models"], "unsure_ok": false, "note": "Canonical open VLA foundation model — an unambiguous, must-nail confident call."}
+{"arxiv_id": "2207.09450", "name": "WHIRL", "expected_topics": ["Human-to-Robot Demonstration Transfer"], "unsure_ok": false, "note": "One-shot manipulation from third-person human video — squarely human-to-robot transfer."}
+{"arxiv_id": "2112.01511", "name": "VINN", "expected_topics": ["Human-to-Robot Demonstration Transfer", "Grasping & Dexterous Manipulation"], "unsure_ok": true, "note": "Nearest-neighbor visual imitation; demos via a handheld reacher-grabber. Method-first this is transfer, but it borders imitation-learning/grasping — UNSURE is defensible."}
+{"arxiv_id": "2402.15391", "name": "Genie", "expected_topics": ["World Models — Interactive Simulation", "World Models — Video Generation", "World Models"], "unsure_ok": true, "note": "Foundation world model / generative interactive environment — should land in the World Models family; exact sub-topic is a judgment call, so any of these (or UNSURE) passes."}
+{"arxiv_id": "1706.03762", "name": "Attention Is All You Need", "expected_topics": [], "unsure_ok": true, "require_unsure": true, "note": "CONFIDENCE-GATE case: an NLP/architecture paper with no fitting Library topic. The gate MUST fire — any stamped topic is a failure."}

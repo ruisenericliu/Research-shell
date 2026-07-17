@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Discovery Review</title>
+<style>
+  :root {
+    /* Neutral dark palette, VSCode Dark+ / JetBrains Darcula family */
+    --bg: #1e1e1e; --panel: #252526; --card: #2d2d30; --border: #3c3c3c;
+    --text: #d4d4d4; --text2: #c0c0c0; --muted: #909090;
+    --accent: #569cd6; --accent2: #89d185;
+    --filed: #6e6e6e; --danger: #e06c6c;
+    --code-bg: #1a1a1a; --chip: #333338;
+    /* Per-section signature hues, drawn from VSCode token colors */
+    --c-home: #569cd6;    /* blue   — keywords   */
+    --c-tax: #4ec9b0;     /* teal   — types      */
+    --c-browse: #dcdcaa;  /* yellow — functions  */
+    --c-disc: #ce9178;    /* orange — strings    */
+    --c-passed: #c586c0;  /* purple — control    */
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; display: flex; height: 100vh;
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif; background: var(--bg); color: var(--text);
+  }
+
+  /* Left navigation rail (table of contents) */
+  .sidebar {
+    width: 220px; flex-shrink: 0; background: var(--panel);
+    border-right: 1px solid var(--border); display: flex;
+    flex-direction: column; padding: 16px 12px; gap: 4px;
+  }
+  .sidebar .brand {
+    font-size: 15px; font-weight: 700; padding: 4px 10px 16px;
+    text-align: center;
+  }
+  .sidebar .nav-label {
+    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .06em; padding: 0 10px 6px; font-weight: 700;
+  }
+  .sidebar .nav-label.lib { color: var(--c-tax); }
+  .sidebar .nav-label.disc { color: var(--c-disc); }
+  .tab {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    text-align: left; background: none; border: 1px solid transparent;
+    border-radius: 8px; padding: 9px 11px; color: var(--text);
+    font-size: 14px; cursor: pointer;
+  }
+  .tab:hover { background: var(--card); }
+  .tab.active {
+    background: var(--card); border-color: var(--border); color: var(--accent);
+    box-shadow: inset 3px 0 0 currentColor;
+  }
+  .tab .num { margin-left: auto; font-size: 12px; color: var(--muted); }
+  .tab.active .num { color: currentColor; }
+  /* Each tab carries its section's signature hue when active. */
+  #tabHome.active { color: var(--c-home); }
+  #tabTaxonomy.active { color: var(--c-tax); }
+  #tabLibrary.active { color: var(--c-browse); }
+  #tabDiscovery.active { color: var(--c-disc); }
+  #tabPassed.active { color: var(--c-passed); }
+
+  /* Main content area */
+  .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    flex-shrink: 0; background: var(--panel);
+    border-bottom: 1px solid var(--border); padding: 12px 20px;
+    display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+  }
+  .stats { display: flex; gap: 18px; flex-wrap: wrap; }
+  .stat { display: flex; align-items: baseline; gap: 6px; }
+  .stat b { font-size: 17px; font-weight: 700; }
+  .stat span { font-size: 12px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .04em; }
+  /* Metric numbers get distinct hues (order fixed by renderStats/renderTopbar).
+     Discovery: candidates·matched·passed·selected·days.
+     Library:   papers·topics. */
+  .stats .stat:nth-child(1) b { color: var(--c-home); }
+  .stats .stat:nth-child(2) b { color: var(--c-tax); }
+  .stats .stat:nth-child(3) b { color: var(--c-passed); }
+  .stats .stat:nth-child(4) b { color: var(--c-browse); }
+  .stats .stat:nth-child(5) b { color: var(--accent2); }
+
+  .view { flex: 1; min-height: 0; display: none; }
+  .view.active { display: flex; }
+
+  /* Discovery view = two equal panes */
+  #discoveryView { gap: 18px; padding: 18px 20px; }
+  .pane {
+    flex: 1; min-width: 0; display: flex; flex-direction: column;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .pane-head {
+    flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-bottom: 1px solid var(--border);
+  }
+  .pane-head h2 {
+    font-size: 13px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .04em; margin: 0; margin-right: auto;
+  }
+  .pane-body { flex: 1; overflow-y: auto; padding: 4px 14px 14px; }
+
+  /* Passed-over view = single scrolling list */
+  #passedView { flex-direction: column; padding: 18px 20px 0; }
+  .passed-head { flex-shrink: 0; }
+  .passed-head input {
+    width: 100%; max-width: 420px; background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px;
+    font-size: 14px;
+  }
+  .passed-head .hint { font-size: 13px; color: var(--muted);
+    margin: 10px 0 14px; }
+  .passed-body { flex: 1; overflow-y: auto; padding-bottom: 20px; }
+  .row {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px; margin-bottom: 7px; font-size: 14px;
+  }
+  .row-title { font-weight: 600; }
+  .row-title a { color: var(--text); text-decoration: none; }
+  .row-title a:hover { color: var(--accent); }
+  .row-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  select {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; font-size: 14px;
+  }
+  button.bar {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+  }
+  button.bar:hover { border-color: var(--accent); }
+  button.bar.danger:hover { border-color: var(--danger); color: var(--danger); }
+  button.bar:disabled { opacity: .4; cursor: default; }
+
+  .date-group > h3 {
+    font-size: 13px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .04em; margin: 16px 0 10px; border-bottom: 1px solid
+    var(--border); padding-bottom: 6px;
+  }
+  .card {
+    display: flex; gap: 10px; background: var(--card); border: 1px solid
+    var(--border); border-radius: 8px; padding: 11px 12px; margin-bottom: 9px;
+    cursor: pointer; transition: border-color .12s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card.filed { opacity: .4; cursor: default; }
+  .card.filed:hover { border-color: var(--border); }
+  .card.sel { cursor: default; }
+  .card.sel:hover { border-color: var(--border); }
+  .move {
+    flex-shrink: 0; align-self: flex-start; width: 26px; height: 26px;
+    border-radius: 6px; font-size: 16px; line-height: 1; padding: 0;
+    background: var(--chip); color: var(--accent); border: 0; cursor: pointer;
+  }
+  .card.sel .move { color: var(--danger); background: #3a2a2a; }
+  .body { flex: 1; min-width: 0; }
+  .title { font-weight: 600; }
+  .title a { color: var(--text); text-decoration: none; }
+  .title a:hover { color: var(--accent); }
+  .meta { font-size: 12px; color: var(--muted); margin: 3px 0 5px;
+    display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+  .badge {
+    font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px;
+    background: var(--chip); color: var(--c-tax);
+  }
+  .badge.match { background: #2b3a2b; color: var(--accent2); }
+  .badge.upvote { background: #3a352b; color: #d8b24a; }
+  .badge.filed { background: #333338; color: var(--filed); }
+  .blurb { font-size: 13px; color: var(--text2); }
+  .empty { color: var(--muted); padding: 40px 4px; text-align: center;
+    font-size: 13px; }
+  #toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--accent2); color: #14240f; padding: 10px 18px;
+    border-radius: 8px; font-weight: 600; opacity: 0; transition: opacity .2s;
+    pointer-events: none; z-index: 10;
+  }
+  #toast.show { opacity: 1; }
+
+  .nav-sep { height: 1px; background: var(--border); margin: 12px 6px; }
+
+  /* Taxonomy view = single scrolling column */
+  #taxonomyView { flex-direction: column; padding: 18px 20px 0; }
+  .tax-body { flex: 1; overflow-y: auto; padding-bottom: 24px; }
+  .tax-node {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+  }
+  .tax-head {
+    display: flex; align-items: baseline; gap: 10px; cursor: pointer;
+  }
+  .tax-head .name { font-weight: 700; font-size: 15px; color: var(--c-tax); }
+  .tax-head .name:hover { filter: brightness(1.2); }
+  .tax-head .count {
+    font-size: 12px; color: var(--muted); font-weight: 600;
+  }
+  .tax-head .umbrella-tag {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--c-passed); border: 1px solid var(--c-passed);
+    border-radius: 999px; padding: 1px 7px;
+  }
+  .tax-scope { font-size: 13px; color: var(--text2); margin-top: 6px; }
+  .tax-children { margin-top: 12px; display: flex; flex-direction: column;
+    gap: 8px; padding-left: 14px; border-left: 2px solid var(--border); }
+  .tax-child {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px; cursor: pointer;
+    transition: border-color .12s;
+  }
+  .tax-child:hover { border-color: var(--accent); }
+  .tax-child .name { font-weight: 600; color: var(--c-tax); }
+  .tax-child:hover .name { filter: brightness(1.2); }
+  .tax-child .count { font-size: 12px; color: var(--muted); margin-left: 8px; }
+  .tax-child .tax-scope { margin-top: 4px; font-size: 12px; }
+
+  /* Library view = results pane + reader pane */
+  #libraryView { gap: 18px; padding: 18px 20px; }
+  .lib-toolbar { flex-wrap: wrap; }
+  .lib-toolbar input[type="search"] {
+    flex: 1; min-width: 120px; background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px;
+    font-size: 14px;
+  }
+  .lib-toolbar .lib-count {
+    font-size: 12px; color: var(--muted); margin-left: auto;
+  }
+  #libResultsPane { flex: 0 0 42%; }
+  #libReaderPane { flex: 1; }
+
+  /* Rendered summary typography */
+  .reader { padding: 6px 22px 28px; line-height: 1.6; }
+  .reader h1 { font-size: 22px; margin: 4px 0 14px; }
+  .reader h2 {
+    font-size: 16px; margin: 26px 0 10px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border); color: var(--accent);
+  }
+  .reader h3 { font-size: 14px; margin: 18px 0 8px; color: var(--accent2); }
+  .reader p { margin: 10px 0; }
+  .reader ul { margin: 8px 0; padding-left: 22px; }
+  .reader li { margin: 4px 0; }
+  .reader a { color: var(--accent); }
+  .reader strong { color: #e8e8e8; }
+  .reader hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
+  .reader code {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 5px; font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .reader pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; overflow-x: auto; margin: 12px 0;
+  }
+  .reader pre code { background: none; border: 0; padding: 0; }
+  .reader blockquote {
+    margin: 12px 0; padding: 4px 14px; border-left: 3px solid var(--border);
+    color: var(--muted);
+  }
+  .reader table {
+    border-collapse: collapse; margin: 14px 0; font-size: 13px;
+    display: block; overflow-x: auto; max-width: 100%;
+  }
+  .reader th, .reader td {
+    border: 1px solid var(--border); padding: 6px 10px; text-align: left;
+    vertical-align: top;
+  }
+  .reader th { background: var(--card); color: var(--text); }
+  .reader .wikilink { color: var(--accent2); }
+
+  /* Home / landing view */
+  #homeView { flex-direction: column; overflow-y: auto; }
+  .home-body { width: 100%; max-width: 1000px; margin: 0 auto;
+    padding: 34px 28px 48px; }
+  .home-hero h1 { font-size: 28px; margin: 0 0 6px; color: var(--c-home); }
+  .home-hero p { color: var(--muted); margin: 0 0 26px; font-size: 15px; }
+  .home-tiles {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px; margin-bottom: 26px;
+  }
+  .home-tile {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 18px;
+  }
+  .home-tile b { font-size: 26px; font-weight: 700; display: block; }
+  .home-tile span { font-size: 12px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .04em; }
+  /* Tiles: papers·topics·matches·passed. */
+  .home-tiles .home-tile:nth-child(1) b { color: var(--c-browse); }
+  .home-tiles .home-tile:nth-child(2) b { color: var(--c-tax); }
+  .home-tiles .home-tile:nth-child(3) b { color: var(--c-disc); }
+  .home-tiles .home-tile:nth-child(4) b { color: var(--c-passed); }
+  .home-cards {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px; margin-bottom: 30px;
+  }
+  .home-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 18px; cursor: pointer;
+    transition: border-color .12s;
+  }
+  .home-card:hover { border-color: var(--accent); }
+  .home-card h3 { margin: 0 0 5px; font-size: 15px; }
+  .home-card p { margin: 0; font-size: 13px; color: var(--muted); }
+  /* Cards: Browse·Taxonomy·Discovery·Passed — title + hover preview the hue
+     of the section each card navigates to. */
+  .home-cards .home-card:nth-child(1) h3 { color: var(--c-browse); }
+  .home-cards .home-card:nth-child(2) h3 { color: var(--c-tax); }
+  .home-cards .home-card:nth-child(3) h3 { color: var(--c-disc); }
+  .home-cards .home-card:nth-child(4) h3 { color: var(--c-passed); }
+  .home-cards .home-card:nth-child(1):hover { border-color: var(--c-browse); }
+  .home-cards .home-card:nth-child(2):hover { border-color: var(--c-tax); }
+  .home-cards .home-card:nth-child(3):hover { border-color: var(--c-disc); }
+  .home-cards .home-card:nth-child(4):hover { border-color: var(--c-passed); }
+  .home-section-label {
+    font-size: 13px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .04em; margin: 0 0 12px;
+  }
+  #homeRecent .row { cursor: pointer; transition: border-color .12s; }
+  #homeRecent .row:hover { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<nav class="sidebar">
+  <div class="brand">Research Library</div>
+  <button class="tab active" id="tabHome" data-view="home">Home</button>
+  <div class="nav-sep"></div>
+  <div class="nav-label lib">Library</div>
+  <button class="tab" id="tabTaxonomy" data-view="taxonomy">
+    Taxonomy <span class="num" id="navTopics">0</span>
+  </button>
+  <button class="tab" id="tabLibrary" data-view="library">
+    Browse <span class="num" id="navPapers">0</span>
+  </button>
+  <div class="nav-sep"></div>
+  <div class="nav-label disc">Discovery</div>
+  <button class="tab" id="tabDiscovery" data-view="discovery">
+    Discovery <span class="num" id="navMatched">0</span>
+  </button>
+  <button class="tab" id="tabPassed" data-view="passed">
+    Passed over <span class="num" id="navPassed">0</span>
+  </button>
+</nav>
+
+<div class="content">
+  <div class="topbar">
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <section class="view active" id="homeView">
+    <div class="home-body" id="homeBody"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section class="view" id="discoveryView">
+    <section class="pane" id="availablePane">
+      <div class="pane-head">
+        <h2>Available (<span id="availCount">0</span>)</h2>
+        <select id="filter"><option value="">All categories</option></select>
+      </div>
+      <div class="pane-body" id="available"><p class="empty">Loading…</p></div>
+    </section>
+    <section class="pane" id="selectedPane">
+      <div class="pane-head">
+        <h2>Selected (<span id="selCount">0</span>)</h2>
+        <button id="clear" class="bar danger" disabled>Clear</button>
+      </div>
+      <div class="pane-body" id="selectedList"></div>
+    </section>
+  </section>
+
+  <section class="view" id="passedView">
+    <div class="passed-head">
+      <input id="passedSearch" type="search" placeholder="Filter titles…" />
+      <p class="hint">Papers that matched neither pass (keyword or semantic)
+        and were not filed. No arXiv link is recorded for these — reference
+        only, useful for spotting category gaps.</p>
+    </div>
+    <div class="passed-body" id="passedList"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section class="view" id="taxonomyView">
+    <div class="tax-body" id="taxonomyList"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section class="view" id="libraryView">
+    <section class="pane" id="libResultsPane">
+      <div class="pane-head lib-toolbar">
+        <select id="libTopic"><option value="">All topics</option></select>
+        <input id="libSearch" type="search" placeholder="Filter by keyword…" />
+        <select id="libSort">
+          <option value="new">Newest</option>
+          <option value="old">Oldest</option>
+          <option value="title">Title A–Z</option>
+        </select>
+        <span class="lib-count"><span id="libCount">0</span> papers</span>
+      </div>
+      <div class="pane-body" id="libResults"><p class="empty">Loading…</p></div>
+    </section>
+    <section class="pane" id="libReaderPane">
+      <div class="pane-body reader" id="reader">
+        <p class="empty">Select a paper to read its summary.</p>
+      </div>
+    </section>
+  </section>
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+let papers = [];
+const byId = new Map();            // arxiv_id -> paper
+let selected = [];                 // [{arxiv_id, title}] from server
+let selectedIds = new Set();
+let passed = null;                 // null until first loaded (lazy)
+let taxonomy = null;               // null until first loaded (lazy)
+let library = null;                // null until first loaded (lazy)
+let libStats = null;               // {topics_total, papers_total}
+const $ = (id) => document.getElementById(id);
+
+async function load() {
+  const data = await (await fetch("/api/papers")).json();
+  papers = data.papers;
+  for (const p of papers) byId.set(p.arxiv_id, p);
+  const sel = $("filter");
+  for (const t of data.topics) {
+    const o = document.createElement("option");
+    o.value = t; o.textContent = t; sel.appendChild(o);
+  }
+  renderStats(data.stats);
+  setSelected(data.selected);
+  renderAvailable();
+  // Eager-load library metadata so the nav badges and Home populate on launch
+  // (rather than reading 0 until a Library tab is first opened).
+  await Promise.all([loadTaxonomy(), loadLibrary()]);
+  showView("home");
+}
+
+let lastStats = null;
+function renderStats(s) {
+  if (!s) return;
+  lastStats = s;
+  const items = [
+    ["candidates", s.candidates], ["matched", s.matched],
+    ["passed over", s.passed_over], ["selected", s.selected],
+    ["days", s.days],
+  ];
+  $("stats").innerHTML = items.map(
+    ([label, n]) => '<div class="stat"><b>' + n + "</b><span>"
+      + esc(label) + "</span></div>").join("");
+  $("navMatched").textContent = s.matched;
+  $("navPassed").textContent = s.passed_over;
+}
+
+// --- Tab navigation -----------------------------------------------------
+const VIEWS = ["home", "discovery", "passed", "taxonomy", "library"];
+const LIBRARY_VIEWS = new Set(["taxonomy", "library"]);
+let currentView = "home";
+
+function showView(name) {
+  currentView = name;
+  for (const tab of document.querySelectorAll(".tab")) {
+    tab.classList.toggle("active", tab.dataset.view === name);
+  }
+  for (const v of VIEWS) {
+    $(v + "View").classList.toggle("active", v === name);
+  }
+  // Home has its own hero/stats; the shared topbar is redundant there.
+  document.querySelector(".topbar").style.display =
+    name === "home" ? "none" : "flex";
+  renderTopbar(name);
+  if (name === "home") renderHome();
+  if (name === "passed" && passed === null) loadPassed();
+  if (name === "taxonomy" && taxonomy === null) loadTaxonomy();
+  if (name === "library" && library === null) loadLibrary();
+}
+
+// Topbar shows discovery stats on the triage views, library totals otherwise.
+function renderTopbar(name) {
+  if (LIBRARY_VIEWS.has(name)) {
+    const s = libStats || { topics_total: 0, papers_total: 0 };
+    $("stats").innerHTML = [
+      ["papers", s.papers_total], ["topics", s.topics_total],
+    ].map(([label, n]) => '<div class="stat"><b>' + n + "</b><span>"
+      + esc(label) + "</span></div>").join("");
+  } else {
+    renderStats(lastStats);
+  }
+}
+
+// --- Home / landing -----------------------------------------------------
+function renderHome() {
+  const s = libStats || { topics_total: 0, papers_total: 0 };
+  const d = lastStats || { matched: 0, passed_over: 0 };
+  const tiles = [
+    [s.papers_total, "filed papers"], [s.topics_total, "topics"],
+    [d.matched, "discovery matches"], [d.passed_over, "passed over"],
+  ];
+  const cards = [
+    ["library", "Browse the Library",
+      "Search filed summaries by topic and keyword, and read them in place."],
+    ["taxonomy", "Topic Taxonomy",
+      "See how the library is organized across topics and sub-topics."],
+    ["discovery", "Review Discovery",
+      "Triage newly surfaced papers and build today's reading list."],
+    ["passed", "Passed Over",
+      "Skim papers the discovery filter set aside — useful for spotting gaps."],
+  ];
+  const body = $("homeBody");
+  body.innerHTML =
+    '<div class="home-hero"><h1>Research Library</h1><p>Browse filed '
+    + "summaries, explore the topic taxonomy, and triage new discoveries."
+    + "</p></div>"
+    + '<div class="home-tiles">' + tiles.map(([n, l]) =>
+      '<div class="home-tile"><b>' + n + "</b><span>" + esc(l)
+      + "</span></div>").join("") + "</div>"
+    + '<div class="home-cards">' + cards.map(([v, t, p]) =>
+      '<div class="home-card" data-view="' + v + '"><h3>' + esc(t)
+      + "</h3><p>" + esc(p) + "</p></div>").join("") + "</div>"
+    + '<p class="home-section-label">Recently filed</p><div id="homeRecent">'
+    + "</div>";
+  for (const c of body.querySelectorAll(".home-card")) {
+    c.addEventListener("click", () => showView(c.dataset.view));
+  }
+  const recent = $("homeRecent");
+  const items = (library || []).slice(0, 8);
+  if (!items.length) {
+    recent.innerHTML = '<p class="empty">No filed papers yet.</p>';
+    return;
+  }
+  for (const p of items) {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = '<div class="row-title">' + esc(p.title) + "</div>"
+      + '<div class="row-meta"><span class="badge">' + esc(p.topic)
+      + "</span> " + esc(p.submitted) + "</div>";
+    row.addEventListener("click", () => openPaperInBrowse(p));
+    recent.appendChild(row);
+  }
+}
+
+// Jump from Home straight into a paper's summary in the Browse view.
+function openPaperInBrowse(p) {
+  showView("library");
+  const go = () => {
+    if ([...$("libTopic").options].some((o) => o.value === p.topic)) {
+      $("libTopic").value = p.topic;
+      renderLibrary();
+    }
+    openNote(p, null);
+  };
+  if (library === null) loadLibrary().then(go);
+  else go();
+}
+
+async function loadPassed() {
+  const data = await (await fetch("/api/passed")).json();
+  passed = data.passed || [];
+  renderPassed();
+}
+
+// --- Taxonomy -----------------------------------------------------------
+async function loadTaxonomy() {
+  const data = await (await fetch("/api/taxonomy")).json();
+  taxonomy = data.taxonomy || [];
+  libStats = { topics_total: data.topics_total, papers_total: data.papers_total };
+  $("navTopics").textContent = data.topics_total;
+  $("navPapers").textContent = data.papers_total;
+  if (LIBRARY_VIEWS.has(currentView)) renderTopbar(currentView);
+  renderTaxonomy();
+}
+
+function renderTaxonomy() {
+  const list = $("taxonomyList");
+  list.innerHTML = "";
+  if (!taxonomy || !taxonomy.length) {
+    list.innerHTML = '<p class="empty">No topics found.</p>';
+    return;
+  }
+  for (const node of taxonomy) list.appendChild(taxonomyNode(node));
+}
+
+function taxonomyNode(node) {
+  const el = document.createElement("div");
+  el.className = "tax-node";
+  const head = document.createElement("div");
+  head.className = "tax-head";
+  head.innerHTML = '<span class="name">' + esc(node.name) + "</span>"
+    + '<span class="count">' + node.count + " papers</span>"
+    + (node.is_umbrella ? '<span class="umbrella-tag">hub</span>' : "");
+  if (!node.is_umbrella) {
+    head.querySelector(".name").addEventListener(
+      "click", () => openTopic(node.name));
+  }
+  el.appendChild(head);
+  if (node.scope) {
+    const scope = document.createElement("div");
+    scope.className = "tax-scope"; scope.textContent = node.scope;
+    el.appendChild(scope);
+  }
+  if (node.children && node.children.length) {
+    const kids = document.createElement("div");
+    kids.className = "tax-children";
+    for (const child of node.children) {
+      const c = document.createElement("div");
+      c.className = "tax-child";
+      c.innerHTML = '<span class="name">' + esc(child.name) + "</span>"
+        + '<span class="count">' + child.count + "</span>"
+        + (child.scope ? '<div class="tax-scope">' + esc(child.scope)
+          + "</div>" : "");
+      c.addEventListener("click", () => openTopic(child.name));
+      kids.appendChild(c);
+    }
+    el.appendChild(kids);
+  }
+  return el;
+}
+
+// Jump from a taxonomy topic into the Library view filtered to it.
+function openTopic(topic) {
+  showView("library");
+  const wanted = () => {
+    if ([...$("libTopic").options].some((o) => o.value === topic)) {
+      $("libTopic").value = topic;
+      renderLibrary();
+    }
+  };
+  if (library === null) {
+    loadLibrary().then(wanted);
+  } else {
+    wanted();
+  }
+}
+
+// --- Library search -----------------------------------------------------
+async function loadLibrary() {
+  const data = await (await fetch("/api/library")).json();
+  library = data.papers || [];
+  const sel = $("libTopic");
+  for (const t of data.topics || []) {
+    const o = document.createElement("option");
+    o.value = t; o.textContent = t; sel.appendChild(o);
+  }
+  renderLibrary();
+}
+
+function renderLibrary() {
+  if (library === null) return;
+  const topic = $("libTopic").value;
+  const q = $("libSearch").value.trim().toLowerCase();
+  const sort = $("libSort").value;
+  let shown = library.filter((p) =>
+    (!topic || p.topic === topic)
+    && (!q || (p.title + " " + p.blurb).toLowerCase().includes(q)));
+  shown = shown.slice().sort((a, b) => {
+    if (sort === "title") return a.title.localeCompare(b.title);
+    const cmp = a.submitted.localeCompare(b.submitted);
+    return sort === "old" ? cmp : -cmp;
+  });
+  const list = $("libResults");
+  list.innerHTML = "";
+  $("libCount").textContent = shown.length;
+  if (!shown.length) {
+    list.innerHTML = '<p class="empty">No papers match.</p>';
+    return;
+  }
+  for (const p of shown) list.appendChild(libraryCard(p));
+}
+
+function libraryCard(p) {
+  const el = document.createElement("div");
+  el.className = "card";
+  const body = document.createElement("div");
+  body.className = "body";
+  body.innerHTML =
+    '<div class="title">' + esc(p.title) + "</div>"
+    + '<div class="meta"><span class="badge">' + esc(p.topic) + "</span>"
+    + (p.submitted ? "<span>" + esc(p.submitted) + "</span>" : "")
+    + (p.arxiv_id ? "<span>" + esc(p.arxiv_id) + "</span>" : "") + "</div>"
+    + (p.blurb ? '<div class="blurb">' + esc(p.blurb) + "</div>" : "");
+  el.appendChild(body);
+  el.addEventListener("click", () => openNote(p, el));
+  return el;
+}
+
+async function openNote(p, cardEl) {
+  for (const c of document.querySelectorAll("#libResults .card")) {
+    c.classList.remove("sel");
+  }
+  if (cardEl) cardEl.classList.add("sel");
+  const reader = $("reader");
+  reader.innerHTML = '<p class="empty">Loading…</p>';
+  const url = "/api/note?topic=" + encodeURIComponent(p.topic)
+    + "&path=" + encodeURIComponent(p.path);
+  const res = await fetch(url);
+  if (!res.ok) {
+    reader.innerHTML = '<p class="empty">Could not load this summary.</p>';
+    return;
+  }
+  const data = await res.json();
+  reader.innerHTML = renderMarkdown(data.markdown || "");
+  reader.scrollTop = 0;
+}
+
+function renderPassed() {
+  if (passed === null) return;
+  const q = $("passedSearch").value.trim().toLowerCase();
+  const shown = q
+    ? passed.filter((p) => p.title.toLowerCase().includes(q))
+    : passed;
+  const list = $("passedList");
+  list.innerHTML = "";
+  if (!shown.length) {
+    list.innerHTML = '<p class="empty">No passed-over papers'
+      + (q ? " match that filter." : ".") + "</p>";
+    return;
+  }
+  let curDate = null, group = null;
+  for (const p of shown) {
+    if (p.date !== curDate) {
+      curDate = p.date;
+      group = document.createElement("section");
+      group.className = "date-group";
+      const h = document.createElement("h3");
+      h.textContent = p.date; group.appendChild(h);
+      list.appendChild(group);
+    }
+    const row = document.createElement("div");
+    row.className = "row";
+    const t = document.createElement("div");
+    t.className = "row-title";
+    if (p.arxiv_id) {
+      const a = document.createElement("a");
+      a.href = "https://arxiv.org/abs/" + p.arxiv_id;
+      a.target = "_blank"; a.rel = "noopener"; a.textContent = p.title;
+      t.appendChild(a);
+    } else {
+      t.textContent = p.title;
+    }
+    row.appendChild(t);
+    if (p.arxiv_id || p.blurb) {
+      const m = document.createElement("div");
+      m.className = "row-meta";
+      m.textContent = [p.arxiv_id, p.blurb].filter(Boolean).join(" · ");
+      row.appendChild(m);
+    }
+    group.appendChild(row);
+  }
+}
+
+// --- Discovery (picklist) ----------------------------------------------
+function setSelected(list) {
+  selected = list || [];
+  selectedIds = new Set(selected.map((e) => e.arxiv_id));
+  renderSelected();
+}
+
+function renderAvailable() {
+  const topic = $("filter").value;
+  const shown = papers.filter(
+    (p) => !selectedIds.has(p.arxiv_id)
+      && (!topic || p.topic === topic)
+  );
+  const list = $("available");
+  list.innerHTML = "";
+  $("availCount").textContent = shown.length;
+  if (!shown.length) {
+    list.innerHTML = '<p class="empty">No papers to review here.</p>';
+    return;
+  }
+  let curDate = null, group = null;
+  for (const p of shown) {
+    if (p.date !== curDate) {
+      curDate = p.date;
+      group = document.createElement("section");
+      group.className = "date-group";
+      const h = document.createElement("h3");
+      h.textContent = p.date; group.appendChild(h);
+      list.appendChild(group);
+    }
+    group.appendChild(availableCard(p));
+  }
+}
+
+function availableCard(p) {
+  const el = card(p);
+  if (p.filed) { el.classList.add("filed"); return el; }
+  const add = document.createElement("button");
+  add.className = "move"; add.textContent = "+"; add.title = "Select";
+  el.prepend(add);
+  const select = (e) => {
+    if (e.target.tagName === "A") return;   // let arxiv links through
+    selectPaper(p.arxiv_id);
+  };
+  el.addEventListener("click", select);
+  return el;
+}
+
+function selectedCard(entry) {
+  const p = byId.get(entry.arxiv_id) || {
+    arxiv_id: entry.arxiv_id, title: entry.title, topic: "",
+    match: null, published: "", blurb: "", filed: false,
+  };
+  const el = card(p); el.classList.add("sel");
+  const rm = document.createElement("button");
+  rm.className = "move"; rm.textContent = "×"; rm.title = "Deselect";
+  rm.addEventListener("click", () => deselect(entry.arxiv_id));
+  el.prepend(rm);
+  return el;
+}
+
+function card(p) {
+  const el = document.createElement("div");
+  el.className = "card";
+  const body = document.createElement("div");
+  body.className = "body";
+  const title = document.createElement("div");
+  title.className = "title";
+  const a = document.createElement("a");
+  a.href = "https://arxiv.org/abs/" + p.arxiv_id;
+  a.target = "_blank"; a.rel = "noopener"; a.textContent = p.title;
+  title.appendChild(a);
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.innerHTML =
+    (p.topic ? '<span class="badge">' + esc(p.topic) + "</span>" : "")
+    + (p.match != null ? '<span class="badge match">'
+      + p.match.toFixed(2) + "</span>" : "")
+    + (p.upvotes ? '<span class="badge upvote">▲ '
+      + p.upvotes + "</span>" : "")
+    + "<span>" + esc(p.arxiv_id) + "</span>"
+    + (p.published ? "<span>" + esc(p.published) + "</span>" : "")
+    + (p.filed ? '<span class="badge filed">filed</span>' : "");
+  const blurb = document.createElement("div");
+  blurb.className = "blurb"; blurb.textContent = p.blurb || "";
+  body.append(title, meta, blurb);
+  el.append(body);
+  return el;
+}
+
+function renderSelected() {
+  const list = $("selectedList");
+  list.innerHTML = "";
+  $("selCount").textContent = selected.length;
+  $("clear").disabled = selected.length === 0;
+  if (!selected.length) {
+    list.innerHTML = '<p class="empty">Nothing selected yet. Click a '
+      + 'paper on the left to add it here.</p>';
+    return;
+  }
+  for (const e of selected) list.appendChild(selectedCard(e));
+}
+
+async function post(url, body) {
+  const res = await fetch(url, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
+  return res.json();
+}
+
+async function selectPaper(id) {
+  const p = byId.get(id); if (!p) return;
+  const data = await post("/api/select",
+    { arxiv_id: p.arxiv_id, title: p.title });
+  if (data.error) return toast("Error: " + data.error);
+  setSelected(data.selected); renderAvailable();
+}
+
+async function deselect(id) {
+  const data = await post("/api/deselect", { arxiv_id: id });
+  if (data.error) return toast("Error: " + data.error);
+  setSelected(data.selected); renderAvailable();
+  toast("Returned to available");
+}
+
+async function clearAll() {
+  if (!selected.length) return;
+  const data = await post("/api/clear", {});
+  if (data.error) return toast("Error: " + data.error);
+  setSelected(data.selected); renderAvailable();
+  toast("Cleared selections");
+}
+
+function esc(s) {
+  const d = document.createElement("div"); d.textContent = s;
+  return d.innerHTML;
+}
+
+// --- Scoped markdown renderer ------------------------------------------
+// Handles exactly the note template: headings, GFM pipe tables, fenced code,
+// hr, unordered lists, blockquotes, bold/italic/code, links, and wiki-links.
+function renderMarkdown(md) {
+  const lines = md.replace(/\r\n/g, "\n").split("\n");
+  const out = [];
+  let i = 0;
+  const flushInline = (s) => inlineMd(s);
+  while (i < lines.length) {
+    const line = lines[i];
+    // Fenced code block
+    if (/^```/.test(line)) {
+      const buf = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+      i++; // closing fence
+      out.push("<pre><code>" + esc(buf.join("\n")) + "</code></pre>");
+      continue;
+    }
+    // GFM table: a header row followed by a |---|---| separator row
+    if (line.includes("|") && i + 1 < lines.length
+        && /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/.test(lines[i + 1])
+        && lines[i + 1].includes("-")) {
+      const header = splitRow(line);
+      i += 2; // skip header + separator
+      const rows = [];
+      while (i < lines.length && lines[i].includes("|")
+             && lines[i].trim() !== "") {
+        rows.push(splitRow(lines[i++]));
+      }
+      let t = "<table><thead><tr>"
+        + header.map((c) => "<th>" + flushInline(c) + "</th>").join("")
+        + "</tr></thead><tbody>";
+      for (const r of rows) {
+        t += "<tr>" + r.map((c) => "<td>" + flushInline(c) + "</td>").join("")
+          + "</tr>";
+      }
+      out.push(t + "</tbody></table>");
+      continue;
+    }
+    // Horizontal rule
+    if (/^---+\s*$/.test(line) || /^\*\*\*+\s*$/.test(line)) {
+      out.push("<hr>"); i++; continue;
+    }
+    // Headings
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (h) {
+      const lvl = Math.min(h[1].length, 3);
+      out.push("<h" + lvl + ">" + flushInline(h[2]) + "</h" + lvl + ">");
+      i++; continue;
+    }
+    // Unordered list
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+        items.push("<li>" + flushInline(lines[i].replace(/^\s*[-*]\s+/, ""))
+          + "</li>");
+        i++;
+      }
+      out.push("<ul>" + items.join("") + "</ul>");
+      continue;
+    }
+    // Blockquote
+    if (/^\s*>\s?/.test(line)) {
+      const buf = [];
+      while (i < lines.length && /^\s*>\s?/.test(lines[i])) {
+        buf.push(lines[i].replace(/^\s*>\s?/, "")); i++;
+      }
+      out.push("<blockquote>" + flushInline(buf.join(" ")) + "</blockquote>");
+      continue;
+    }
+    // Blank line
+    if (line.trim() === "") { i++; continue; }
+    // Paragraph (gather until blank / block start)
+    const buf = [line];
+    i++;
+    while (i < lines.length && lines[i].trim() !== ""
+           && !/^(#{1,6}\s|\s*[-*]\s|\s*>\s?|```|---+\s*$)/.test(lines[i])
+           && !lines[i].includes("|")) {
+      buf.push(lines[i++]);
+    }
+    out.push("<p>" + flushInline(buf.join(" ")) + "</p>");
+  }
+  return out.join("\n");
+}
+
+function splitRow(row) {
+  return row.replace(/^\s*\|/, "").replace(/\|\s*$/, "")
+    .split("|").map((c) => c.trim());
+}
+
+// Inline spans on already-block-split text. Escapes first, then applies
+// code, links, wiki-links, bold, italic — order matters (code protects its
+// contents; links before bold so URLs aren't mangled).
+function inlineMd(s) {
+  let t = esc(s);
+  t = t.replace(/`([^`]+)`/g, (_, c) => "<code>" + c + "</code>");
+  t = t.replace(/!\[\[[^\]]+\]\]/g, "");                 // embedded images
+  t = t.replace(/\[\[([^\]]+)\]\]/g,
+    (_, w) => '<span class="wikilink">' + w + "</span>");
+  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g,
+    (_, txt, url) => '<a href="' + url
+      + '" target="_blank" rel="noopener">' + txt + "</a>");
+  t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  t = t.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+  return t;
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
+}
+
+for (const tab of document.querySelectorAll(".tab")) {
+  tab.addEventListener("click", () => showView(tab.dataset.view));
+}
+$("filter").addEventListener("change", renderAvailable);
+$("clear").addEventListener("click", clearAll);
+$("passedSearch").addEventListener("input", renderPassed);
+$("libTopic").addEventListener("change", renderLibrary);
+$("libSearch").addEventListener("input", renderLibrary);
+$("libSort").addEventListener("change", renderLibrary);
+load();
+</script>
+</body>
+</html>
